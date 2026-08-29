@@ -14,6 +14,7 @@ from pathlib import Path
 from threading import Thread
 from time import time
 
+import httpx
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -38,6 +39,7 @@ BRIEF_COUNT = 10
 SUMMARY_CHARS = 180
 MESSAGE_LIMIT = 3600  # Telegram caps at 4096; leave room for header and footer
 REFRESH_SECONDS = 240  # under CACHE_SECONDS (300) so the pool is never stale
+SELF_PING_SECONDS = 600  # under the 15 min idle window free hosts spin down at
 
 logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s %(message)s", level=logging.INFO
@@ -404,15 +406,42 @@ async def refresh_loop() -> None:
         await asyncio.sleep(REFRESH_SECONDS)
 
 
+async def self_ping_loop() -> None:
+    """Keep a free web-service instance from being spun down.
+
+    Render stops a free service after 15 minutes with no inbound request, and
+    a polling bot generates none - all its traffic is outbound. Requesting our
+    own public URL is inbound traffic and resets that timer. RENDER_EXTERNAL_URL
+    is set by the platform, so this is a no-op anywhere else.
+    """
+    url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
+    if not url:
+        return
+
+    logger.info("Self-ping every %ds -> %s", SELF_PING_SECONDS, url)
+    while True:
+        await asyncio.sleep(SELF_PING_SECONDS)
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+            logger.info("Self-ping %s", response.status_code)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            logger.warning("Self-ping failed: %s", error)
+
+
 async def post_init(app) -> None:
     """Start refreshing in the background. Must not block startup."""
     app.bot_data["refresher"] = asyncio.create_task(refresh_loop())
+    app.bot_data["pinger"] = asyncio.create_task(self_ping_loop())
 
 
 async def post_shutdown(app) -> None:
-    task = app.bot_data.get("refresher")
-    if task is not None:
-        task.cancel()
+    for name in ("refresher", "pinger"):
+        task = app.bot_data.get(name)
+        if task is not None:
+            task.cancel()
 
 
 def main() -> None:
