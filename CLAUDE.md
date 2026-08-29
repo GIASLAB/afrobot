@@ -35,6 +35,32 @@ sleeps aggressively — during standby the process is suspended, so nothing
 answers until it wakes. Telegram holds updates for 24h, so messages are late,
 never lost. The only real fix is the cloud deploy below.
 
+## Live deployment
+
+Running on Render free tier, deployed from `GIASLAB/afrobot` on `main`.
+
+| | |
+|---|---|
+| URL | https://afrobot-xmuf.onrender.com |
+| Service | `srv-da9a8chsrm7s73bn11pg`, region frankfurt |
+| Token | `TELEGRAM_TOKEN` env var in the Render dashboard |
+| Deploys | automatic on every push to `main` |
+
+The Windows Scheduled Task is **disabled** on purpose. Two pollers on one
+token knock each other out. Re-enable it only if the cloud copy is torn down:
+`schtasks /change /tn Afrobot /enable`
+
+Free tier facts that shape the design:
+
+- No background workers, only web services, so the bot serves `$PORT`
+  (`start_health_server`) to qualify as one
+- A free service is spun down after 15 min with no **inbound** request, and a
+  poller makes none. `self_ping_loop` requests `RENDER_EXTERNAL_URL` every
+  10 min to reset that timer
+- 750 free instance hours per workspace per month. One service running 24/7 is
+  ~744h, so it fits with almost nothing spare. **Adding a second free service
+  will suspend both** partway through the month
+
 ## Deploy (cloud)
 
 Needs an always-on container host — **not** serverless. `picker.remember`
