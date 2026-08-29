@@ -10,5 +10,3 @@ services:
       # Set this in the Render dashboard. Never commit the token.
       - key: TELEGRAM_TOKEN
         sync: false
-      - key: PYTHON_VERSION
-        value: "3.13.4"
