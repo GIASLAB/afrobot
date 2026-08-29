@@ -1,0 +1,11 @@
+token.txt
+__pycache__/
+*.pyc
+.venv/
+*.log
+*.log.old
+run.cmd
+afrobot_service.cmd
+afrobot_hidden.vbs
+bot.py
+simple_bot.py

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: afrobot
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python news_bot.py"
+    envVars:
+      # Set this in the Render dashboard. Never commit the token.
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.13.4"

@@ -1,0 +1,8 @@
+token.txt
+__pycache__/
+*.pyc
+.venv/
+*.log
+*.log.old
+bot.py
+simple_bot.py
